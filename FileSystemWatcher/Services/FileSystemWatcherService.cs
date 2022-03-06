@@ -7,7 +7,6 @@ using System.Configuration;
 using System.Globalization;
 using System.IO;
 using System.Reflection;
-using System.ServiceProcess;
 
 namespace FileSystemWatcher.Services
 {
@@ -21,20 +20,19 @@ namespace FileSystemWatcher.Services
         private readonly IFileSystemSafeWatcher _dossiersEnAttente_MonitoringInstance;
         private readonly IFileSystemSafeWatcher _kofaxErrors_MonitoringInstance;
 
-
-
+        private readonly IFileSystemInitializer _fileSystemInitializer;
+        private readonly IXmlInitializer _xmlInitializer;
 
         public FileSystemWatcherService(
-            IFileSystemSafeWatcher dossiersEnAttente_MonitoringInstance,
-            IFileSystemSafeWatcher kofaxErrors_MonitoringInstance,
+            IFileSystemInitializer fileSystemInitializer,
+            IXmlInitializer xmlInitializer,
             ILog logger)
         {
-            _dossiersEnAttente_MonitoringInstance = dossiersEnAttente_MonitoringInstance;
-            _kofaxErrors_MonitoringInstance = kofaxErrors_MonitoringInstance;
+
+            _fileSystemInitializer = fileSystemInitializer;
+            _xmlInitializer = xmlInitializer;
             _logger = logger;
-        }
-        public void Start()
-        {
+
             #region  DossiersEnAttente
 
             _dossiersEnAttenteRepositoryPath = ConfigurationManager.AppSettings[Enumerations.ConfigKeyPaths.DossiersEnAttenteRepositoryPath.ToString()];
@@ -45,11 +43,9 @@ namespace FileSystemWatcher.Services
                 Stop();
             }
 
-            _dossiersEnAttente_MonitoringInstance.Initialize(_dossiersEnAttenteRepositoryPath, true);
-            _logger.InfoFormat("Le programme {0} commence a observer les dossiers créés sur le répertoire suivant {1}", Assembly.GetExecutingAssembly().GetName().Name, _dossiersEnAttenteRepositoryPath);
+            _dossiersEnAttente_MonitoringInstance = new FileSystemSafeWatcher(_dossiersEnAttenteRepositoryPath, _fileSystemInitializer, _xmlInitializer, logger);
 
             #endregion
-
             #region  KofaxErrors
 
             _kofaxErrorsRepositoryPath = ConfigurationManager.AppSettings[Enumerations.ConfigKeyPaths.KofaxErrorsRepositoryPath.ToString()];
@@ -61,10 +57,25 @@ namespace FileSystemWatcher.Services
                 Stop();
             }
 
+            _kofaxErrors_MonitoringInstance = new FileSystemSafeWatcher(_kofaxErrorsRepositoryPath, _fileSystemInitializer, _xmlInitializer, logger);
+
+            #endregion
+        }
+        public void Start()
+        {
+            #region  DossiersEnAttente
+
+            _dossiersEnAttente_MonitoringInstance.Initialize(true);
+            _logger.InfoFormat("Le programme {0} commence a observer les dossiers créés sur le répertoire suivant {1}", Assembly.GetExecutingAssembly().GetName().Name, _dossiersEnAttenteRepositoryPath);
+
+            #endregion
+
+            #region  KofaxErrors
+
             //_kofaxErrors_MonitoringInstance = new FileSystemSafeWatcher(_kofaxErrorsRepositoryPath, _fileSystemInitializer, _xmlInitializer);
             _logger.InfoFormat("Le programme {0} est insialisé pour l'observation des dossiers créés sur le répertoire suivant {1}", Assembly.GetExecutingAssembly().GetName().Name, _kofaxErrorsRepositoryPath);
 
-            _kofaxErrors_MonitoringInstance.Initialize(_kofaxErrorsRepositoryPath, true);
+            _kofaxErrors_MonitoringInstance.Initialize(true);
             _logger.InfoFormat("Le programme {0} commence a observer les dossiers créés sur le répertoire suivant {1}", Assembly.GetExecutingAssembly().GetName().Name, _kofaxErrorsRepositoryPath);
 
             #endregion

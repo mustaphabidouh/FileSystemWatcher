@@ -1,6 +1,6 @@
 ﻿using FileSystemWatcher.Enum;
 using FileSystemWatcher.Models;
-using FileSystemWatcher.Services.XmlManager;
+using log4net;
 using System;
 using System.Collections.Generic;
 using System.Configuration;
@@ -17,16 +17,28 @@ namespace FileSystemWatcher.Services.FileWatcher
         private readonly string _dossiersEnErreurRepositoryPath;
         private readonly string _dossiersTraitesRepositoryPath;
 
-        public FileSystemInitializer()
+        private readonly ILog _logger;
+
+        public FileSystemInitializer(ILog logger)
         {
             _kofaxRepositoryPath = ConfigurationManager.AppSettings[Enumerations.ConfigKeyPaths.KofaxRepositoryPath.ToString()];
             _kofaxErrorsRepositoryPath = ConfigurationManager.AppSettings[Enumerations.ConfigKeyPaths.KofaxErrorsRepositoryPath.ToString()];
             _dossiersEnAttenteRepositoryPath = ConfigurationManager.AppSettings[Enumerations.ConfigKeyPaths.DossiersEnAttenteRepositoryPath.ToString()];
             _dossiersEnErreurRepositoryPath = ConfigurationManager.AppSettings[Enumerations.ConfigKeyPaths.DossiersEnErreurRepositoryPath.ToString()];
             _dossiersTraitesRepositoryPath = ConfigurationManager.AppSettings[Enumerations.ConfigKeyPaths.DossiersTraitesRepositoryPath.ToString()];
+
+            _logger = logger;
         }
 
         public string GetFileName(string path)
+        {
+            if (path.Length == 0)
+                throw new ArgumentNullException("path of directory is null");
+            string fileName = Path.GetFileName(path);
+            return fileName;
+        }
+
+        public string GetDirectoryName(string path)
         {
             if (path.Length == 0)
                 throw new ArgumentNullException("path of directory is null");
@@ -80,25 +92,37 @@ namespace FileSystemWatcher.Services.FileWatcher
             if (path.Length == 0)
                 throw new ArgumentNullException("path of source is null");
 
+            DirectoryInfo dirInfo = new DirectoryInfo(path);
+
             var files = GetFileOfDirectory(path);
 
             foreach (string file in files)
             {
+                FileInfo fileInfo = new FileInfo(file);
                 if (File.Exists(file)) File.Delete(file);
+                _logger.InfoFormat("Suppression du fichier {0} relatif au dossier {1} dont le chemin est {2}",
+                    fileInfo.Name,
+                    GetFileName(path),
+                    Path.Combine(path, fileInfo.Name));
             }
 
             if (Directory.Exists(path)) Directory.Delete(path, true);
+
+            _logger.InfoFormat("Suppression du repertoire {0} dont le chemin est {1}",
+                    dirInfo.Name,
+                    dirInfo.FullName);
         }
 
-        public void WriteDirectoryToDossiersTraites(string dirName)
+        public void WriteDirectory_To_DossiersTraites(string dirName)
         {
             if (dirName.Length == 0)
                 throw new ArgumentNullException("le nom du répertoire est null");
 
             WriteDirectory(Path.Combine(_dossiersTraitesRepositoryPath, dirName));
+            _logger.InfoFormat("Création du répertoire {0} dans le chemin {1}", dirName, _dossiersTraitesRepositoryPath);
         }
 
-        public void WriteDirectoryToDossiersEnErreur(string path)
+        public void WriteDirectory_To_DossiersEnErreur(string path)
         {
             if (path.Length == 0)
                 throw new ArgumentNullException("path of directory is null");
@@ -108,9 +132,10 @@ namespace FileSystemWatcher.Services.FileWatcher
             string directoryName = file.Name.Replace(extension, "");
 
             WriteDirectory(Path.Combine(_dossiersEnErreurRepositoryPath, directoryName));
+            _logger.InfoFormat("Création du répertoire {0} dans le chemin {1}", directoryName, _dossiersEnErreurRepositoryPath);
         }
 
-        public void WriteFilesToKofaxPathAndDossiersTraites(string path)
+        public void WriteFiles_To_KofaxPath_And_DossiersTraites(string path)
         {
             if (path.Length == 0)
                 throw new ArgumentNullException("path of directory is null");
@@ -122,10 +147,21 @@ namespace FileSystemWatcher.Services.FileWatcher
                 if (!IsFileReadOnly(file))
                     SetFileReadAccess(file, false);
 
-                var fileName = GetFileName(file);
+                FileInfo fileInfo = new FileInfo(file);
 
-                File.Copy(file,string.Format("{0}\\{1}", _kofaxRepositoryPath, fileName), true);
-                File.Copy(file, string.Format("{0}\\{1}\\{2}", _dossiersTraitesRepositoryPath, GetFileName(path), fileName), true);
+                File.Copy(file, Path.Combine(_kofaxRepositoryPath, fileInfo.Name), true);
+                _logger.InfoFormat("Copier le fichier {0} dans le repertoire {1} dont le chemin est {2} vers le chemin {3}",
+                    fileInfo.Name,
+                    GetFileName(path),
+                    path,
+                    _kofaxRepositoryPath);
+
+                File.Copy(file, Path.Combine(_dossiersTraitesRepositoryPath, GetFileName(path), fileInfo.Name), true);
+                _logger.InfoFormat("Copier le fichier {0} dans le repertoire {1} dont le chemin est {2} vers le chemin {3}",
+                    fileInfo.Name,
+                    GetFileName(path),
+                    path,
+                    Path.Combine(_dossiersTraitesRepositoryPath, GetFileName(path)));
             }
         }
 
@@ -144,6 +180,12 @@ namespace FileSystemWatcher.Services.FileWatcher
             foreach (var item in pages)
             {
                 MoveFile(Path.Combine(_kofaxRepositoryPath, item.ImportFileName), Path.Combine(_dossiersEnErreurRepositoryPath, directoryName, item.ImportFileName));
+
+                _logger.InfoFormat("Déplacement du fichier {0} relatif au dossier {1} existant dans le chemin {2} vers le chemin {3}", 
+                    item.ImportFileName,
+                    directoryName,
+                    _kofaxRepositoryPath,
+                    Path.Combine(_dossiersEnErreurRepositoryPath, directoryName));
             }
         }
 
@@ -157,7 +199,14 @@ namespace FileSystemWatcher.Services.FileWatcher
             string directoryName = file.Name.Replace(extension, "");
             string prefix = ConfigurationManager.AppSettings[Enumerations.ConfigPrefix.DossiersEnErreurPrefix.ToString()];
 
-            MoveFile(Path.Combine(_kofaxErrorsRepositoryPath, path), string.Format("{0}\\{1}\\{2}_{3}",_dossiersEnErreurRepositoryPath, directoryName, prefix, file.Name));
+            MoveFile(Path.Combine(_kofaxErrorsRepositoryPath, path), Path.Combine(_dossiersEnErreurRepositoryPath, directoryName, string.Format("{0}{1}", prefix, file.Name)));
+
+            _logger.InfoFormat("Deplacement du fichier xml {0} renomme en {1} relatif au dossier {2} dont le chemin est {3} vers le chemin {4}",
+                    file.Name,
+                    string.Format("{0}{1}", prefix, file.Name),
+                    directoryName,
+                    Path.Combine(_kofaxErrorsRepositoryPath, file.Name),
+                    Path.Combine(_dossiersEnErreurRepositoryPath, directoryName));
         }
 
         public void DeleteDirWithFiles_From_DossiersEnAttente(string path)
@@ -179,7 +228,5 @@ namespace FileSystemWatcher.Services.FileWatcher
 
             DeleteDirWithFiles(Path.Combine(_dossiersTraitesRepositoryPath, directoryName));
         }
-
-
     }
 }

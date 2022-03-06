@@ -9,6 +9,7 @@ using FileSystemWatcher.Services.XmlManager;
 using System.Collections.Generic;
 using FileSystemWatcher.Models;
 using log4net;
+using static FileSystemWatcher.Enum.Enumerations;
 
 namespace FileSystemWatcher.Services.FileWatcher
 {
@@ -34,21 +35,27 @@ namespace FileSystemWatcher.Services.FileWatcher
 
         #region Delegate to FileSystemWatcher
 
+        protected FileSystemSafeWatcher()
+        {
+        }
+
+        public FileSystemSafeWatcher(string path)
+        {
+            _fileSystemWatcher = new System.IO.FileSystemWatcher(path);
+        }
+
         public FileSystemSafeWatcher(
+            string path,
             IFileSystemInitializer fileSystemInitializer,
             IXmlInitializer xmlInitializer,
             ILog logger)
         {
-            _fileSystemWatcher = new System.IO.FileSystemWatcher();
+            _fileSystemWatcher = new System.IO.FileSystemWatcher(path);
             _fileSystemInitializer = fileSystemInitializer;
             _xmlInitializer = xmlInitializer;
             _logger = logger;
         }
-
-        public FileSystemSafeWatcher()
-        {
-            _fileSystemWatcher = new System.IO.FileSystemWatcher();
-        }
+        
 
         public FileSystemSafeWatcher(string path, string filter)
         {
@@ -238,50 +245,61 @@ namespace FileSystemWatcher.Services.FileWatcher
 
         }
 
-        protected void OnCreated(FileSystemEventArgs e)
+        protected void OnCreated(FileSystemEventArgs e, FileSourceAndTypeEvent fileSourceAndTypeEvent)
         {
+
             _currentDiretoryPath = e.FullPath;
             _currentDiretoryName = e.Name;
+            _logger.InfoFormat("le fichier {0} dont le chemin est {1} source d'événement {2}", _currentDiretoryName, _currentDiretoryPath, e.ChangeType);
 
-            string path = e.FullPath.Replace(e.Name, "");
-
-            
-            
-
-            if (path == ConfigurationManager.AppSettings[Enumerations.ConfigKeyPaths.KofaxErrorsRepositoryPath.ToString()])
+            try
             {
-                List<Page> pages = _xmlInitializer.DeserializeXmlFile(_currentDiretoryPath);
+                string path = e.FullPath.Replace(e.Name, "");
 
-                // Créer le dossier en erreur dans le dossiersEnErreurRepositoryPath
-                _fileSystemInitializer.WriteDirectoryToDossiersEnErreur(_currentDiretoryPath);
+                switch (fileSourceAndTypeEvent)
+                {
+                    case FileSourceAndTypeEvent.DossiersEnAttente_DirWithFile:
 
-                // Couper et coller les fichiers depuis le dossier Kofax vers DossiersEnErreur
-                _fileSystemInitializer.MoveFiles_From_Kofax_To_DossiersEnErreur(pages, _currentDiretoryPath);
+                        // Créer le dossier traité dans le dossiersTraitesRepositoryPath
+                        _fileSystemInitializer.WriteDirectory_To_DossiersTraites(_currentDiretoryName);
 
-                // Couper et coller le fichier xml depuis le dossier KofaxErrors vers DossiersEnErreur
-                _fileSystemInitializer.MoveXmlFiles_From_KofaxErrors_To_DossiersEnErreur(_currentDiretoryPath);
+                        // Copier les fichiers du répertoire scanné par le watcher dans KofaxRepositoryPath et dossiersEnAttenteRepositoryPath
+                        _fileSystemInitializer.WriteFiles_To_KofaxPath_And_DossiersTraites(_currentDiretoryPath);
 
-                // Supprimer les dossiers traités depuis le dossier DossiersTraites
-                _fileSystemInitializer.DeleteDirWithFiles_From_DossiersTraites(_currentDiretoryPath);
+                        // Générer fileName.xml dans le chemin KofaxRepositoryPath
+                        _xmlInitializer.CreateXMLFile(_currentDiretoryPath, _currentDiretoryName);
 
+                        // Supprimer les dossiers traités depuis le dossier DossiersEnAttente
+                        _fileSystemInitializer.DeleteDirWithFiles_From_DossiersEnAttente(_currentDiretoryPath);
+                        break;
+
+                    case FileSourceAndTypeEvent.DossiersEnAttente_DirWithoutFile:
+
+
+                        break;
+
+                    case FileSourceAndTypeEvent.KofaxErrors_XmlFile:
+
+                            List<Page> pages = _xmlInitializer.DeserializeXmlFile(_currentDiretoryPath);
+
+                            // Créer le dossier en erreur dans le dossiersEnErreurRepositoryPath
+                            _fileSystemInitializer.WriteDirectory_To_DossiersEnErreur(_currentDiretoryPath);
+
+                            // Couper et coller les fichiers depuis le dossier Kofax vers DossiersEnErreur
+                            _fileSystemInitializer.MoveFiles_From_Kofax_To_DossiersEnErreur(pages, _currentDiretoryPath);
+
+                            // Couper et coller le fichier xml depuis le dossier KofaxErrors vers DossiersEnErreur
+                            _fileSystemInitializer.MoveXmlFiles_From_KofaxErrors_To_DossiersEnErreur(_currentDiretoryPath);
+
+                            // Supprimer les dossiers traités depuis le dossier DossiersTraites
+                            _fileSystemInitializer.DeleteDirWithFiles_From_DossiersTraites(_currentDiretoryPath);
+                        break;
+                }
             }
-            else if (path == ConfigurationManager.AppSettings[Enumerations.ConfigKeyPaths.DossiersEnAttenteRepositoryPath.ToString()])
+            catch (Exception ex)
             {
-                // Créer le dossier traité dans le dossiersTraitesRepositoryPath
-                _fileSystemInitializer.WriteDirectoryToDossiersTraites(_currentDiretoryName);
-
-                // Copier les fichiers du répertoire scanné par le watcher dans KofaxRepositoryPath et dossiersEnAttenteRepositoryPath
-                _fileSystemInitializer.WriteFilesToKofaxPathAndDossiersTraites(_currentDiretoryPath);
-
-                // Générer fileName.xml dans le chemin KofaxRepositoryPath
-                _xmlInitializer.CreateXMLFile(_currentDiretoryPath, _currentDiretoryName);
-
-                // Supprimer les dossiers traités depuis le dossier DossiersEnAttente
-                _fileSystemInitializer.DeleteDirWithFiles_From_DossiersEnAttente(_currentDiretoryPath);
-                
+                _logger.Error(string.Format("Message d'erreur : {0}", ex));
             }
-
-            
         }
 
         /// <summary>
@@ -342,9 +360,8 @@ namespace FileSystemWatcher.Services.FileWatcher
 
         #region Implementation
 
-        public void Initialize(string path, bool enableRaisingEvents)
+        public void Initialize(bool enableRaisingEvents)
         {
-            _fileSystemWatcher.Path = path;
             _events = ArrayList.Synchronized(new ArrayList(1000));
             //_fileSystemWatcher.Changed += new FileSystemEventHandler(this.FileSystemEventHandler);
             _fileSystemWatcher.Created += new FileSystemEventHandler(this.FileSystemEventHandler);
@@ -405,6 +422,9 @@ namespace FileSystemWatcher.Services.FileWatcher
                         for (int i = 0; i < _events.Count; i++)
                         {
                             current = _events[i] as DelayedEvent;
+
+                            
+
                             if (current.Delayed)
                             {
                                 // This event has been delayed already so we can fire it
@@ -420,20 +440,25 @@ namespace FileSystemWatcher.Services.FileWatcher
                                 }
 
                                 bool raiseEvent = true;
-                                if (current.Args.ChangeType == WatcherChangeTypes.Created || current.Args.ChangeType == WatcherChangeTypes.Changed)
+                                if (current.Args.ChangeType == WatcherChangeTypes.Created)
                                 {
-                                    //check if the file has been completely copied (can be opened for read)
-
                                     FileInfo fileInfo = new FileInfo(current.Args.FullPath);
+                                   
 
+                                    //check if the file has been completely copied (can be opened for read)
                                     string path = fileInfo.FullName.Replace(fileInfo.Name, "");
 
                                     if (path == ConfigurationManager.AppSettings[Enumerations.ConfigKeyPaths.KofaxErrorsRepositoryPath.ToString()])
                                     {
+                                        if (fileInfo.Extension == ".xml")
+                                            current.FileSourceAndTypeEvent = FileSourceAndTypeEvent.KofaxErrors_XmlFile;
                                         try
                                         {
                                             // If this succeeds, the file is finished
-                                            using (FileStream stream = File.Open(current.Args.FullPath, FileMode.Open, FileAccess.Read, FileShare.None)) { }
+                                            using (FileStream stream = File.Open(current.Args.FullPath, FileMode.Open, FileAccess.Read, FileShare.None)) 
+                                            { 
+
+                                            }
                                         }
                                         catch (IOException)
                                         {
@@ -443,13 +468,19 @@ namespace FileSystemWatcher.Services.FileWatcher
                                     else if (path == ConfigurationManager.AppSettings[Enumerations.ConfigKeyPaths.DossiersEnAttenteRepositoryPath.ToString()])
                                     {
                                         string[] files = Directory.GetFiles(current.Args.FullPath);
+                                        if (files.Length == 0) current.FileSourceAndTypeEvent = FileSourceAndTypeEvent.DossiersEnAttente_DirWithoutFile;
+                                        else
+                                            current.FileSourceAndTypeEvent = FileSourceAndTypeEvent.DossiersEnAttente_DirWithFile;
 
                                         foreach (var file in files)
                                         {
                                             try
                                             {
                                                 // If this succeeds, the file is finished
-                                                using (FileStream stream = File.Open(file, FileMode.Open, FileAccess.Read, FileShare.None)) { }
+                                                using (FileStream stream = File.Open(file, FileMode.Open, FileAccess.Read, FileShare.None)) 
+                                                {
+
+                                                }
                                             }
                                             catch (IOException)
                                             {
@@ -516,7 +547,7 @@ namespace FileSystemWatcher.Services.FileWatcher
                             OnChanged(de.Args);
                             break;
                         case WatcherChangeTypes.Created:
-                            OnCreated(de.Args);
+                            OnCreated(de.Args, de.FileSourceAndTypeEvent);
                             break;
                         case WatcherChangeTypes.Deleted:
                             OnDeleted(de.Args);

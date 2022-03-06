@@ -1,5 +1,6 @@
 ﻿using FileSystemWatcher.Enum;
 using FileSystemWatcher.Models;
+using log4net;
 using System.Collections.Generic;
 using System.Configuration;
 using System.IO;
@@ -13,6 +14,7 @@ namespace FileSystemWatcher.Services.XmlManager
     {
         private readonly string _kofaxRepositoryPath;
         private readonly string _dossiersTraitesRepositoryPath;
+        private readonly ILog _logger;
 
         // Enums
         private readonly string _xlmBatchAttrName = ConfigurationManager.AppSettings[Enumerations.ConfigKeyXmlBatchAttibutes.XmlBatchAttrName.ToString()];
@@ -20,29 +22,31 @@ namespace FileSystemWatcher.Services.XmlManager
         private readonly string _xmlBatchAttrBatchClassName = ConfigurationManager.AppSettings[Enumerations.ConfigKeyXmlBatchAttibutes.XmlBatchAttrBatchClassName.ToString()];
         private readonly string _xmlBatchAttrProcessed = ConfigurationManager.AppSettings[Enumerations.ConfigKeyXmlBatchAttibutes.XmlBatchAttrProcessed.ToString()];
         private readonly string _xmlBatchAttrRelativeImageFilePath = ConfigurationManager.AppSettings[Enumerations.ConfigKeyXmlBatchAttibutes.XmlBatchAttrRelativeImageFilePath.ToString()];
-        private readonly string _xmlBatchAttrImportFileName = ConfigurationManager.AppSettings[Enumerations.ConfigKeyXmlBatchAttibutes.XmlBatchAttrImportFileName.ToString()];
+        private readonly string _xmlDocumentAttrImportFileName = ConfigurationManager.AppSettings[Enumerations.ConfigKeyXmlBatchAttibutes.XmlDocumentAttrImportFileName.ToString()];
 
         private static readonly XmlSerializerNamespaces _namespaces = new XmlSerializerNamespaces(new[] { new XmlQualifiedName("", "") });
 
 
-        public XmlInitializer()
+        public XmlInitializer(ILog logger)
         {
             _kofaxRepositoryPath = ConfigurationManager.AppSettings[Enumerations.ConfigKeyPaths.KofaxRepositoryPath.ToString()];
             _dossiersTraitesRepositoryPath = ConfigurationManager.AppSettings[Enumerations.ConfigKeyPaths.DossiersTraitesRepositoryPath.ToString()];
+            _logger = logger;
         }
 
         public void CreateXMLFile(string dirPath, string dirName)
         {
-            List<Pages> listPage = new List<Pages>();
+            List<Document> listDocument = new List<Document>();
 
             var files = Directory.GetFiles(dirPath);
             foreach (var file in files)
             {
                 Pages pages = new Pages(new Page { ImportFileName = Path.GetFileName(file), OriginalFileName = Path.Combine(_kofaxRepositoryPath, Path.GetFileName(file)) });
-                listPage.Add(pages);
+                Document document = new Document(_xmlDocumentAttrImportFileName, pages);
+                listDocument.Add(document);
             }
 
-            Documents documents = new Documents(_xmlBatchAttrImportFileName, listPage);
+            Documents documents = new Documents(listDocument);
 
             Batche batche = new Batche(
                 _xlmBatchAttrName,
@@ -59,17 +63,27 @@ namespace FileSystemWatcher.Services.XmlManager
             XmlSerializer serializer = new XmlSerializer(typeof(ImportSession));
             System.Text.Encoding encoding = Encoding.GetEncoding("utf-8");
 
-            using (Stream streamKofax = new FileStream(string.Format("{0}{1}.xml", _kofaxRepositoryPath, dirName), FileMode.Create))
+            using (Stream streamKofax = new FileStream(Path.Combine(_kofaxRepositoryPath, string.Format("{0}.xml", dirName)), FileMode.Create))
             using (XmlWriter xmlWriterKofax = new XmlTextWriter(streamKofax, encoding){ Formatting = Formatting.Indented})
             {
                 serializer.Serialize(xmlWriterKofax, importSession, _namespaces);
             }
 
-            using (Stream streamDossiersTraites = new FileStream(string.Format("{0}\\{1}\\{1}.xml", _dossiersTraitesRepositoryPath, dirName), FileMode.Create))
+            _logger.InfoFormat("Creation du fichier {0}.xml relatif au dossier {1} dont le chemin est {2}",
+                    dirName,
+                    dirName,
+                    Path.Combine(_kofaxRepositoryPath, string.Format("{0}.xml", dirName)));
+
+            using (Stream streamDossiersTraites = new FileStream(Path.Combine(_dossiersTraitesRepositoryPath, dirName, string.Format("{0}.xml", dirName)), FileMode.Create))
             using (XmlWriter xmlWriterDossiersTraite = new XmlTextWriter(streamDossiersTraites, encoding) { Formatting = Formatting.Indented })
             {
                 serializer.Serialize(xmlWriterDossiersTraite, importSession, _namespaces);
             }
+
+            _logger.InfoFormat("Creation du fichier {0}.xml relatif au dossier {1} dont le chemin est {2}",
+                    dirName,
+                    dirName,
+                    Path.Combine(_dossiersTraitesRepositoryPath, dirName, string.Format("{0}.xml", dirName)));
         }
 
         public List<Page> DeserializeXmlFile(string dirPath)
@@ -83,11 +97,11 @@ namespace FileSystemWatcher.Services.XmlManager
             importSession = (ImportSession)serializer.Deserialize(reader);
             reader.Close();
 
-            var pages = importSession.Batches.Batche.Documents.Pages.ToArray();
+            var documents = importSession.Batches.Batche.Documents.Document.ToArray();
 
-            foreach(var item in pages)
+            foreach(var item in documents)
             {
-                pageList.Add(item.Page);
+                pageList.Add(item.Pages.Page);
             }
 
             return pageList;

@@ -1,10 +1,13 @@
 ﻿using System.IO;
+using static FileSystemWatcher.Enum.Enumerations;
+
 namespace FileSystemWatcher.Services.FileWatcher
 {
     public class DelayedEvent
     {
         private readonly FileSystemEventArgs _args;
         private bool _delayed;
+        private FileSourceAndTypeEvent _fileSourceAndTypeEvent;
 
         public FileSystemEventArgs Args
         {
@@ -25,13 +28,27 @@ namespace FileSystemWatcher.Services.FileWatcher
             }
         }
 
+        public FileSourceAndTypeEvent FileSourceAndTypeEvent
+        {
+            get
+            {
+                return _fileSourceAndTypeEvent;
+            }
+            set
+            {
+                _fileSourceAndTypeEvent = value;
+            }
+        }
+
         public DelayedEvent()
         {
             _delayed = false;
+            _fileSourceAndTypeEvent = FileSourceAndTypeEvent.None;
         }
         public DelayedEvent(FileSystemEventArgs args)
         {
             _delayed = false;
+            _fileSourceAndTypeEvent = FileSourceAndTypeEvent.None;
             _args = args;
         }
 

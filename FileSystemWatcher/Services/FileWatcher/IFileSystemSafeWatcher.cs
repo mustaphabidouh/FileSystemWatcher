@@ -16,7 +16,7 @@ namespace FileSystemWatcher.Services.FileWatcher
         void EndInit();
         WaitForChangedResult WaitForChanged(WatcherChangeTypes changeType);
         WaitForChangedResult WaitForChanged(WatcherChangeTypes changeType, int timeout);
-        void Initialize(string path, bool enableRaisingEvents);
+        void Initialize(bool enableRaisingEvents);
         void Pause(bool enableRaisingEvents);
     }
 }

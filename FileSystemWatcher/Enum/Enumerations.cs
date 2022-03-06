@@ -18,9 +18,12 @@
             XmlBatchAttrBatchClassName,
             XmlBatchAttrProcessed,
             XmlBatchAttrRelativeImageFilePath,
-            XmlBatchAttrImportFileName
+            XmlDocumentAttrImportFileName
         }
         public enum ConfigPrefix
         { DossiersEnErreurPrefix }
+
+        public enum FileSourceAndTypeEvent
+        { None, DossiersEnAttente_DirWithFile, DossiersEnAttente_DirWithoutFile, KofaxErrors_XmlFile }
     }
 }

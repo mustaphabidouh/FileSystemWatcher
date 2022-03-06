@@ -7,28 +7,44 @@ namespace FileSystemWatcher.Models
     [Serializable]
     public class Documents
     {
+        [XmlElement(typeof(Document))]
+        public List<Document> Document { get; set; }
+
+        public Documents()
+        {
+            Document = new List<Document>();
+        }
+
+        public Documents(List<Document> document)
+        {
+            Document = document;
+        }
+
+        [XmlInclude(typeof(Document))]
+        public void Add(Document i)
+        {
+            Document.Add(i);
+        }
+    }
+
+    public class Document
+    {
         [XmlAttribute("FormTypeName")]
         public string FormTypeName { get; set; }
 
         [XmlElement(typeof(Pages))]
-        public List<Pages> Pages { get; set; }
+        public Pages Pages { get; set; }
 
-        public Documents()
+        public Document()
         {
             FormTypeName = string.Empty;
-            Pages = new List<Pages>();
+            Pages = new Pages();
         }
 
-        public Documents(string formTypeName, List<Pages> pages)
+        public Document(string formTypeName, Pages pages)
         {
             FormTypeName = formTypeName;
             Pages = pages;
-        }
-
-        [XmlInclude(typeof(Pages))]
-        public void Add(Pages i)
-        {
-            Pages.Add(i);
         }
     }
 }

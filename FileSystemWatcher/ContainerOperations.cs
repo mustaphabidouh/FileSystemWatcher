@@ -13,7 +13,6 @@ namespace FileSystemWatcher
 
         public static IContainer Container => _containerSingleton.Value;
 
-
         private static IContainer CreateContainer()
         {
             var builder = new ContainerBuilder();

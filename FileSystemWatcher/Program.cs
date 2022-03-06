@@ -45,7 +45,7 @@ namespace FileSystemWatcher
             }
             finally
             {
-                Logger.Error("Ferméture programme");
+                Logger.Info("Ferméture programme");
             }
         }
     }
