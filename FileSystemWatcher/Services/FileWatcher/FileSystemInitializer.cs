@@ -16,7 +16,6 @@ namespace FileSystemWatcher.Services.FileWatcher
         private readonly string _dossiersEnAttenteRepositoryPath;
         private readonly string _dossiersEnErreurRepositoryPath;
         private readonly string _dossiersTraitesRepositoryPath;
-
         private readonly ILog _logger;
 
         public FileSystemInitializer(ILog logger)

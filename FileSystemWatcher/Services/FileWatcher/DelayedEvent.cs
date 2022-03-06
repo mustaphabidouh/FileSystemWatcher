@@ -27,7 +27,6 @@ namespace FileSystemWatcher.Services.FileWatcher
                 _delayed = value;
             }
         }
-
         public FileSourceAndTypeEvent FileSourceAndTypeEvent
         {
             get
@@ -39,7 +38,6 @@ namespace FileSystemWatcher.Services.FileWatcher
                 _fileSourceAndTypeEvent = value;
             }
         }
-
         public DelayedEvent()
         {
             _delayed = false;
@@ -51,7 +49,6 @@ namespace FileSystemWatcher.Services.FileWatcher
             _fileSourceAndTypeEvent = FileSourceAndTypeEvent.None;
             _args = args;
         }
-
         public virtual bool IsDuplicate(object obj)
         {
             DelayedEvent delayedEvent = obj as DelayedEvent;

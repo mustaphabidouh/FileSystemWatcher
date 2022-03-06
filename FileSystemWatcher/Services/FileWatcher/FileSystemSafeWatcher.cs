@@ -20,16 +20,10 @@ namespace FileSystemWatcher.Services.FileWatcher
         private readonly IFileSystemInitializer _fileSystemInitializer;
         private readonly IXmlInitializer _xmlInitializer;
         private readonly ILog _logger;
-
-        /// <summary>
-        /// Lock order is _enterThread, _events.SyncRoot
-        /// </summary>
         private readonly object _enterThread = new object(); // Only one timer event is processed at any given moment
         private ArrayList _events;
-
         private Timer _serverTimer;
         private int _consolidationInterval = 1000; // milliseconds
-
         private string _currentDiretoryPath = string.Empty;
         private string _currentDiretoryName = string.Empty;
 
@@ -62,10 +56,6 @@ namespace FileSystemWatcher.Services.FileWatcher
             _fileSystemWatcher = new System.IO.FileSystemWatcher(path, filter);
         }
 
-        /// <summary>
-        /// Gets or sets a value indicating whether the component is enabled.
-        /// </summary>
-        /// <value>true if the component is enabled; otherwise, false. The default is false. If you are using the component on a designer in Visual Studio 2005, the default is true.</value>
         public bool EnableRaisingEvents
         {
             get
@@ -87,10 +77,6 @@ namespace FileSystemWatcher.Services.FileWatcher
             }
         }
 
-        /// <summary>
-        /// Gets or sets the filter string, used to determine what files are monitored in a directory.
-        /// </summary>
-        /// <value>The filter string. The default is "*.*" (Watches all files.)</value>
         public string Filter
         {
             get
@@ -103,10 +89,6 @@ namespace FileSystemWatcher.Services.FileWatcher
             }
         }
 
-        /// <summary>
-        /// Gets or sets a value indicating whether subdirectories within the specified path should be monitored.
-        /// </summary>
-        /// <value>true if you want to monitor subdirectories; otherwise, false. The default is false.</value>
         public bool IncludeSubdirectories
         {
             get
@@ -119,10 +101,6 @@ namespace FileSystemWatcher.Services.FileWatcher
             }
         }
 
-        /// <summary>
-        /// Gets or sets the size of the internal buffer.
-        /// </summary>
-        /// <value>The internal buffer size. The default is 8192 (8K).</value>
         public int InternalBufferSize
         {
             get
@@ -135,11 +113,6 @@ namespace FileSystemWatcher.Services.FileWatcher
             }
         }
 
-        /// <summary>
-        /// Gets or sets the type of changes to watch for.
-        /// </summary>
-        /// <value>One of the System.IO.NotifyFilters values. The default is the bitwise OR combination of LastWrite, FileName, and DirectoryName.</value>
-        /// <exception cref="System.ArgumentException">The value is not a valid bitwise OR combination of the System.IO.NotifyFilters values.</exception>
         public NotifyFilters NotifyFilter
         {
             get
@@ -152,11 +125,6 @@ namespace FileSystemWatcher.Services.FileWatcher
             }
         }
 
-        /// <summary>
-        /// Gets or sets the path of the directory to watch.
-        /// </summary>
-        /// <value>The path to monitor. The default is an empty string ("").</value>
-        /// <exception cref="System.ArgumentException">The specified path contains wildcard characters.-or- The specified path contains invalid path characters.</exception>
         public string Path
         {
             get
@@ -169,10 +137,6 @@ namespace FileSystemWatcher.Services.FileWatcher
             }
         }
 
-        /// <summary>
-        /// Gets or sets the object used to marshal the event handler calls issued as a result of a directory change.
-        /// </summary>
-        /// <value>The System.ComponentModel.ISynchronizeInvoke that represents the object used to marshal the event handler calls issued as a result of a directory change. The default is null.</value>
         public ISynchronizeInvoke SynchronizingObject
         {
             get
@@ -185,59 +149,31 @@ namespace FileSystemWatcher.Services.FileWatcher
             }
         }
 
-        /// <summary>
-        /// Occurs when a file or directory in the specified System.IO.FileSystemWatcher.Path is changed.
-        /// </summary>
         public event FileSystemEventHandler Changed;
 
-        /// <summary>
-        /// Occurs when a file or directory in the specified System.IO.FileSystemWatcher.Path is created.
-        /// </summary>
         public event FileSystemEventHandler Created;
 
-        /// <summary>
-        /// Occurs when a file or directory in the specified System.IO.FileSystemWatcher.Path is deleted.
-        /// </summary>
         public event FileSystemEventHandler Deleted;
 
-        /// <summary>
-        /// Occurs when the internal buffer overflows.
-        /// </summary>
         public event ErrorEventHandler Error;
 
-        /// <summary>
-        /// Occurs when a file or directory in the specified System.IO.FileSystemWatcher.Path is renamed.
-        /// </summary>
         public event RenamedEventHandler Renamed;
 
-        /// <summary>
-        /// Begins the initialization of a System.IO.FileSystemWatcher used on a form or used by another component. The initialization occurs at run time.
-        /// </summary>
         public void BeginInit()
         {
             _fileSystemWatcher.BeginInit();
         }
 
-        /// <summary>
-        /// Releases the unmanaged resources used by the System.IO.FileSystemWatcher and optionally releases the managed resources.
-        /// </summary>
         public void Dispose()
         {
             Uninitialize();
         }
 
-        /// <summary>
-        /// Ends the initialization of a System.IO.FileSystemWatcher used on a form or used by another component. The initialization occurs at run time.
-        /// </summary>
         public void EndInit()
         {
             _fileSystemWatcher.EndInit();
         }
 
-        /// <summary>
-        /// Raises the System.IO.FileSystemWatcher.Changed event.
-        /// </summary>
-        /// <param name="e">A System.IO.FileSystemEventArgs that contains the event data.</param>
         protected void OnChanged(FileSystemEventArgs e)
         {
             if (Changed != null)
@@ -302,54 +238,30 @@ namespace FileSystemWatcher.Services.FileWatcher
             }
         }
 
-        /// <summary>
-        /// Raises the System.IO.FileSystemWatcher.Deleted event.
-        /// </summary>
-        /// <param name="e">A System.IO.FileSystemEventArgs that contains the event data.</param>
         protected void OnDeleted(FileSystemEventArgs e)
         {
             if (Deleted != null)
                 Deleted(this, e);
         }
 
-        /// <summary>
-        /// Raises the System.IO.FileSystemWatcher.Error event.
-        /// </summary>
-        /// <param name="e">An System.IO.ErrorEventArgs that contains the event data.</param>
         protected void OnError(ErrorEventArgs e)
         {
             if (Error != null)
                 Error(this, e);
         }
 
-        /// <summary>
-        /// Raises the System.IO.FileSystemWatcher.Renamed event.
-        /// </summary>
-        /// <param name="e">A System.IO.RenamedEventArgs that contains the event data.</param>
         protected void OnRenamed(RenamedEventArgs e)
         {
             if (Renamed != null)
                 Renamed(this, e);
         }
 
-        /// <summary>
-        /// A synchronous method that returns a structure that contains specific information on the change that occurred, given the type of change you want to monitor.
-        /// </summary>
-        /// <param name="changeType">The System.IO.WatcherChangeTypes to watch for.</param>
-        /// <returns>A System.IO.WaitForChangedResult that contains specific information on the change that occurred.</returns>
         public WaitForChangedResult WaitForChanged(WatcherChangeTypes changeType)
         {
             //TODO
             throw new NotImplementedException();
         }
 
-        /// <summary>
-        /// A synchronous method that returns a structure that contains specific information on the change that occurred, given the type of change you want to monitor
-        /// and the time (in milliseconds) to wait before timing out.
-        /// </summary>
-        /// <param name="changeType">The System.IO.WatcherChangeTypes to watch for.</param>
-        /// <param name="timeout">The time (in milliseconds) to wait before timing out.</param>
-        /// <returns>A System.IO.WaitForChangedResult that contains specific information on the change that occurred.</returns>
         public WaitForChangedResult WaitForChanged(WatcherChangeTypes changeType, int timeout)
         {
             //TODO
@@ -406,16 +318,12 @@ namespace FileSystemWatcher.Services.FileWatcher
 
         private void ElapsedEventHandler(Object sender, ElapsedEventArgs e)
         {
-            // We don't fire the events inside the lock. We will queue them here until
-            // the code exits the locks.
             Queue eventsToBeFired = null;
             if (System.Threading.Monitor.TryEnter(_enterThread))
-            {
-                // Only one thread at a time is processing the events                
+            {              
                 try
                 {
                     eventsToBeFired = new Queue(10000);
-                    // Lock the collection while processing the events
                     lock (_events.SyncRoot)
                     {
                         DelayedEvent current;
@@ -443,9 +351,6 @@ namespace FileSystemWatcher.Services.FileWatcher
                                 if (current.Args.ChangeType == WatcherChangeTypes.Created)
                                 {
                                     FileInfo fileInfo = new FileInfo(current.Args.FullPath);
-                                   
-
-                                    //check if the file has been completely copied (can be opened for read)
                                     string path = fileInfo.FullName.Replace(fileInfo.Name, "");
 
                                     if (path == ConfigurationManager.AppSettings[Enumerations.ConfigKeyPaths.KofaxErrorsRepositoryPath.ToString()])
@@ -486,7 +391,6 @@ namespace FileSystemWatcher.Services.FileWatcher
                                             {
                                                 raiseEvent = false;
                                             }
-
                                         }
                                     }    
                                 }
@@ -514,7 +418,6 @@ namespace FileSystemWatcher.Services.FileWatcher
                     System.Threading.Monitor.Exit(_enterThread);
                 }
             }
-            // else - this timer event was skipped, processing will happen during the next timer event
 
             // Now fire all the events if any events are in eventsToBeFired
             RaiseEvents(eventsToBeFired);

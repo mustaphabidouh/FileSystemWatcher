@@ -27,6 +27,7 @@ namespace FileSystemWatcher.Models
         }
     }
 
+    [Serializable]
     public class Document
     {
         [XmlAttribute("FormTypeName")]

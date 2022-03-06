@@ -61,7 +61,7 @@ namespace FileSystemWatcher.Services.XmlManager
             ImportSession importSession = new ImportSession(batches);
 
             XmlSerializer serializer = new XmlSerializer(typeof(ImportSession));
-            System.Text.Encoding encoding = Encoding.GetEncoding("utf-8");
+            Encoding encoding = Encoding.GetEncoding("utf-8");
 
             using (Stream streamKofax = new FileStream(Path.Combine(_kofaxRepositoryPath, string.Format("{0}.xml", dirName)), FileMode.Create))
             using (XmlWriter xmlWriterKofax = new XmlTextWriter(streamKofax, encoding){ Formatting = Formatting.Indented})

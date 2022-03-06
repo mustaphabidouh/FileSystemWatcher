@@ -11,7 +11,6 @@ namespace FileSystemWatcher.Services.FileWatcher
         event FileSystemEventHandler Created;
         event FileSystemEventHandler Deleted;
         event RenamedEventHandler Renamed;
-
         void BeginInit();
         void EndInit();
         WaitForChangedResult WaitForChanged(WatcherChangeTypes changeType);
